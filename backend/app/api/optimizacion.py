@@ -9,9 +9,15 @@ from fastapi import APIRouter, HTTPException
 from backend.app.schemas.optimizacion import (
     OptimizacionRequest,
     OptimizacionResponse,
+    PlanificacionRequest,
+    PlanificacionResponse,
 )
-from backend.app.services.excepciones import ReglaNegocioError
+from backend.app.services.excepciones import (
+    RecursoNoEncontradoError,
+    ReglaNegocioError,
+)
 from backend.app.services.optimizacion_service import optimizar_multi_entrega
+from backend.app.services.planificacion_service import planificar_entregas
 
 
 router = APIRouter(
@@ -55,6 +61,31 @@ def calcular_multi_entrega(solicitud: OptimizacionRequest):
             status_code=409,
             detail=str(error),
         ) from error
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error interno: {str(error)}",
+        ) from error
+
+
+@router.post("/planificar", response_model=PlanificacionResponse)
+def planificar_multi_entrega(solicitud: PlanificacionRequest):
+    """Valida pedidos y capacidad antes de ejecutar TSP con Dijkstra."""
+    try:
+        resultado = planificar_entregas(
+            origen=solicitud.origen,
+            ids_pedidos=solicitud.pedidos,
+            id_vehiculo=solicitud.id_vehiculo,
+            regresar_origen=solicitud.regresar_origen,
+        )
+        return PlanificacionResponse(**resultado)
+
+    except RecursoNoEncontradoError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+    except ReglaNegocioError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
     except Exception as error:
         raise HTTPException(

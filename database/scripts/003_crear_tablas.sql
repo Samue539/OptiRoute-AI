@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS operaciones.direcciones (
     id_direccion BIGSERIAL PRIMARY KEY,
 
     id_cliente BIGINT NOT NULL,
+    id_nodo BIGINT,
 
     etiqueta VARCHAR(50) NOT NULL DEFAULT 'PRINCIPAL',
 
@@ -162,6 +163,7 @@ CREATE TABLE IF NOT EXISTS logistica.vehiculos (
     tipo_vehiculo VARCHAR(30) NOT NULL,
 
     capacidad_kg NUMERIC(10,2),
+    capacidad_volumen_m3 NUMERIC(10,3),
 
     estado VARCHAR(20) NOT NULL DEFAULT 'DISPONIBLE',
 
@@ -194,6 +196,12 @@ CREATE TABLE IF NOT EXISTS logistica.vehiculos (
         CHECK (
             capacidad_kg IS NULL
             OR capacidad_kg > 0
+        ),
+
+    CONSTRAINT chk_vehiculos_capacidad_volumen
+        CHECK (
+            capacidad_volumen_m3 IS NULL
+            OR capacidad_volumen_m3 > 0
         ),
 
     CONSTRAINT chk_vehiculos_anio
@@ -554,3 +562,44 @@ CREATE TABLE IF NOT EXISTS logistica.ruta_pedidos (
     CONSTRAINT uq_ruta_pedidos_orden
         UNIQUE (id_ruta, orden_entrega)
 );
+
+-- ============================================================
+-- MIGRACIONES COMPATIBLES PARA RESTRICCIONES LOGISTICAS
+-- Las columnas son opcionales para conservar registros existentes.
+-- ============================================================
+
+ALTER TABLE operaciones.direcciones
+    ADD COLUMN IF NOT EXISTS id_nodo BIGINT;
+
+ALTER TABLE logistica.vehiculos
+    ADD COLUMN IF NOT EXISTS capacidad_volumen_m3 NUMERIC(10,3);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_direcciones_nodo'
+          AND conrelid = 'operaciones.direcciones'::regclass
+    ) THEN
+        ALTER TABLE operaciones.direcciones
+            ADD CONSTRAINT fk_direcciones_nodo
+            FOREIGN KEY (id_nodo)
+            REFERENCES logistica.nodos(id_nodo);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'chk_vehiculos_capacidad_volumen'
+          AND conrelid = 'logistica.vehiculos'::regclass
+    ) THEN
+        ALTER TABLE logistica.vehiculos
+            ADD CONSTRAINT chk_vehiculos_capacidad_volumen
+            CHECK (
+                capacidad_volumen_m3 IS NULL
+                OR capacidad_volumen_m3 > 0
+            );
+    END IF;
+END
+$$;
