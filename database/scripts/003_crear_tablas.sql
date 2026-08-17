@@ -393,3 +393,164 @@ CREATE TABLE IF NOT EXISTS logistica.conexiones (
     CONSTRAINT uq_conexiones_origen_destino
         UNIQUE (id_nodo_origen, id_nodo_destino)
 );
+
+-- ============================================================
+-- ESQUEMA: LOGISTICA
+-- TABLA: RUTAS
+-- Guarda las rutas calculadas por el sistema
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS logistica.rutas (
+    id_ruta BIGSERIAL PRIMARY KEY,
+
+    codigo VARCHAR(30) NOT NULL UNIQUE,
+
+    id_conductor BIGINT,
+    id_vehiculo BIGINT,
+
+    id_nodo_origen BIGINT NOT NULL,
+    id_nodo_destino BIGINT NOT NULL,
+
+    estado VARCHAR(30) NOT NULL DEFAULT 'PLANIFICADA',
+
+    distancia_total_km NUMERIC(10,3),
+    tiempo_estimado_min NUMERIC(10,2),
+    costo_estimado NUMERIC(10,2),
+
+    fecha_planificada TIMESTAMPTZ,
+    fecha_inicio TIMESTAMPTZ,
+    fecha_fin TIMESTAMPTZ,
+
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actualizado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_rutas_conductor
+        FOREIGN KEY (id_conductor)
+        REFERENCES logistica.conductores(id_conductor),
+
+    CONSTRAINT fk_rutas_vehiculo
+        FOREIGN KEY (id_vehiculo)
+        REFERENCES logistica.vehiculos(id_vehiculo),
+
+    CONSTRAINT fk_rutas_origen
+        FOREIGN KEY (id_nodo_origen)
+        REFERENCES logistica.nodos(id_nodo),
+
+    CONSTRAINT fk_rutas_destino
+        FOREIGN KEY (id_nodo_destino)
+        REFERENCES logistica.nodos(id_nodo),
+
+    CONSTRAINT chk_rutas_nodos
+        CHECK (id_nodo_origen <> id_nodo_destino),
+
+    CONSTRAINT chk_rutas_estado
+        CHECK (
+            estado IN (
+                'PLANIFICADA',
+                'ASIGNADA',
+                'EN_RUTA',
+                'COMPLETADA',
+                'CANCELADA'
+            )
+        ),
+
+    CONSTRAINT chk_rutas_distancia
+        CHECK (
+            distancia_total_km IS NULL
+            OR distancia_total_km >= 0
+        ),
+
+    CONSTRAINT chk_rutas_tiempo
+        CHECK (
+            tiempo_estimado_min IS NULL
+            OR tiempo_estimado_min >= 0
+        ),
+
+    CONSTRAINT chk_rutas_costo
+        CHECK (
+            costo_estimado IS NULL
+            OR costo_estimado >= 0
+        ),
+
+    CONSTRAINT chk_rutas_fechas
+        CHECK (
+            fecha_fin IS NULL
+            OR fecha_inicio IS NULL
+            OR fecha_fin >= fecha_inicio
+        )
+);
+
+-- ============================================================
+-- ESQUEMA: LOGISTICA
+-- TABLA: RUTA_PUNTOS
+-- Guarda la secuencia de nodos recorridos
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS logistica.ruta_puntos (
+    id_ruta_punto BIGSERIAL PRIMARY KEY,
+
+    id_ruta BIGINT NOT NULL,
+    id_nodo BIGINT NOT NULL,
+
+    orden INTEGER NOT NULL,
+
+    distancia_acumulada_km NUMERIC(10,3),
+
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_ruta_puntos_ruta
+        FOREIGN KEY (id_ruta)
+        REFERENCES logistica.rutas(id_ruta)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_ruta_puntos_nodo
+        FOREIGN KEY (id_nodo)
+        REFERENCES logistica.nodos(id_nodo),
+
+    CONSTRAINT chk_ruta_puntos_orden
+        CHECK (orden >= 1),
+
+    CONSTRAINT chk_ruta_puntos_distancia
+        CHECK (
+            distancia_acumulada_km IS NULL
+            OR distancia_acumulada_km >= 0
+        ),
+
+    CONSTRAINT uq_ruta_puntos_orden
+        UNIQUE (id_ruta, orden)
+);
+
+-- ============================================================
+-- ESQUEMA: LOGISTICA
+-- TABLA: RUTA_PEDIDOS
+-- Relaciona los pedidos con su ruta y orden de entrega
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS logistica.ruta_pedidos (
+    id_ruta_pedido BIGSERIAL PRIMARY KEY,
+
+    id_ruta BIGINT NOT NULL,
+    id_pedido BIGINT NOT NULL,
+
+    orden_entrega INTEGER NOT NULL,
+
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_ruta_pedidos_ruta
+        FOREIGN KEY (id_ruta)
+        REFERENCES logistica.rutas(id_ruta)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_ruta_pedidos_pedido
+        FOREIGN KEY (id_pedido)
+        REFERENCES operaciones.pedidos(id_pedido),
+
+    CONSTRAINT chk_ruta_pedidos_orden
+        CHECK (orden_entrega >= 1),
+
+    CONSTRAINT uq_ruta_pedidos_pedido
+        UNIQUE (id_ruta, id_pedido),
+
+    CONSTRAINT uq_ruta_pedidos_orden
+        UNIQUE (id_ruta, orden_entrega)
+);
