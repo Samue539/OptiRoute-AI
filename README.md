@@ -121,3 +121,24 @@ OptiRoute-AI está pensado para adaptarse a diferentes sectores:
 *Convertir datos, mapas y algoritmos en decisiones logísticas inteligentes, haciendo que cada ruta sea más eficiente y cada entrega esté mejor planificada.*
 
 **OptiRoute-AI — Inteligencia aplicada a la logística del futuro.**
+
+
+
+## © Autoría y derechos de propiedad intelectual
+
+**OptiRoute-AI — Proyecto original de Samuel Patricio Simbaña Gualacata**
+
+**© 2026 Samuel Patricio Simbaña Gualacata. Todos los derechos reservados sobre las contribuciones de su titularidad.**
+
+OptiRoute-AI es una iniciativa concebida e impulsada por Samuel Patricio Simbaña Gualacata, quien ha definido su visión, objetivos y orientación hacia la optimización inteligente de rutas logísticas.
+
+**Creador e impulsor del proyecto:** Samuel Patricio Simbaña Gualacata  
+**País de origen:** Ecuador  
+**Año:** 2026  
+**Repositorio oficial:** https://github.com/Samue539/OptiRoute-AI
+
+El código original, la documentación y los elementos desarrollados para este proyecto están sujetos a los derechos de propiedad intelectual de sus respectivos titulares.
+
+No se concede una licencia general para la reproducción, redistribución, modificación o explotación comercial del código original sin la autorización correspondiente, salvo las excepciones legales y los permisos aplicables de terceros.
+
+Las bibliotecas, dependencias y demás componentes de terceros conservan sus propias licencias y condiciones de uso.
