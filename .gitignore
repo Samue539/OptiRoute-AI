@@ -14,6 +14,8 @@ data/seguridad/
 # Variables de entorno y contraseñas
 .env
 .env.*
+*.env
+*.env.*
 !.env.example
 
 # Visual Studio Code
@@ -29,9 +31,64 @@ Thumbs.db
 # Logs
 *.log
 
-# PostgreSQL
+# Claves privadas y almacenes de claves
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+
+# Credenciales, secretos, tokens y sesiones locales (no codigo fuente)
+credentials.json
+credentials.*.json
+credentials.yaml
+credentials.yml
+credentials.toml
+secrets.json
+secrets.yaml
+secrets.yml
+secrets.toml
+token.json
+tokens.json
+tokens.*.json
+session.json
+sessions.json
+sessions.*.json
+sesion.json
+sesiones.json
+sesiones.*.json
+cuentas.json
+auditoria.json
+.netrc
+.npmrc
+.pgpass
+.pg_service.conf
+
+# Respaldos de bases de datos; conservar scripts SQL y migraciones
 *.backup
+*.backup.*
 *.dump
+*.dump.*
+*.bak
+*.sql.gz
+*.sql.bz2
+*.sql.xz
+*.sql.zip
+*backup*.sql
+*dump*.sql
+*respaldo*.sql
+# SQL versionado del proyecto (incluye subdirectorios)
+!/database/scripts/**/*.sql
+!/database/seeds/**/*.sql
+!/database/migrations/**/*.sql
+*.sqlite
+*.sqlite3
+*.db
 
 # Respaldos de base de datos (nunca subir al repositorio)
 backups/
