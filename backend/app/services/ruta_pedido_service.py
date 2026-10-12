@@ -1,6 +1,11 @@
-from psycopg.errors import UniqueViolation
-
 from backend.app.core.database import obtener_conexion
+
+try:
+    from psycopg.errors import UniqueViolation
+except Exception:  # pragma: no cover - psycopg no disponible en este entorno
+
+    class UniqueViolation(Exception):  # type: ignore
+        pass
 from backend.app.services.excepciones import (
     RecursoNoEncontradoError,
     ReglaNegocioError,

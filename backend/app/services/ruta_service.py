@@ -9,6 +9,7 @@ from backend.app.services.grafo_service import (
     cargar_grafo_desde_bd,
     obtener_nodo,
 )
+from backend.app.services.ruta_recursos import validar_recursos
 
 
 TRANSICIONES_ESTADO = {
@@ -27,7 +28,6 @@ def _numero(valor):
 def _conductor_desde_fila(fila, inicio):
     if fila[inicio] is None:
         return None
-
     return {
         "id_conductor": fila[inicio],
         "nombres": fila[inicio + 1],
@@ -39,7 +39,6 @@ def _conductor_desde_fila(fila, inicio):
 def _vehiculo_desde_fila(fila, inicio):
     if fila[inicio] is None:
         return None
-
     return {
         "id_vehiculo": fila[inicio],
         "placa": fila[inicio + 1],
@@ -54,10 +53,8 @@ def crear_ruta(origen: int, destino: int):
 
     if nodo_origen is None:
         raise ValueError("El nodo de origen no existe.")
-
     if nodo_destino is None:
         raise ValueError("El nodo de destino no existe.")
-
     if origen == destino:
         raise ValueError("El origen y el destino deben ser diferentes.")
 
@@ -68,9 +65,11 @@ def crear_ruta(origen: int, destino: int):
         raise ValueError("No existe una ruta entre los nodos indicados.")
 
     conexion = obtener_conexion()
-
     try:
+        import uuid
+
         with conexion.cursor() as cursor:
+            codigo_temporal = f"TEMP-{uuid.uuid4().hex[:8].upper()}"
             cursor.execute(
                 """
                 INSERT INTO logistica.rutas (
@@ -80,27 +79,20 @@ def crear_ruta(origen: int, destino: int):
                     estado,
                     distancia_total_km
                 )
-                VALUES ('TEMP', %s, %s, 'PLANIFICADA', %s)
+                VALUES (%s, %s, %s, 'PLANIFICADA', %s)
                 RETURNING id_ruta;
                 """,
-                (origen, destino, resultado["distancia"]),
+                (codigo_temporal, origen, destino, resultado["distancia"]),
             )
-
             id_ruta = cursor.fetchone()[0]
             codigo = f"RUT-{id_ruta:06d}"
-
             cursor.execute(
-                """
-                UPDATE logistica.rutas
-                SET codigo = %s
-                WHERE id_ruta = %s;
-                """,
+                "UPDATE logistica.rutas SET codigo = %s WHERE id_ruta = %s;",
                 (codigo, id_ruta),
             )
 
             distancia_acumulada = 0.0
             nodo_anterior = None
-
             for orden, id_nodo in enumerate(resultado["camino"], start=1):
                 if nodo_anterior is not None:
                     pesos = [
@@ -108,8 +100,8 @@ def crear_ruta(origen: int, destino: int):
                         for vecino, peso in grafo.obtener_vecinos(nodo_anterior)
                         if vecino == id_nodo
                     ]
-                    distancia_acumulada += min(pesos)
-
+                    if pesos:
+                        distancia_acumulada += min(pesos)
                 cursor.execute(
                     """
                     INSERT INTO logistica.ruta_puntos (
@@ -123,9 +115,7 @@ def crear_ruta(origen: int, destino: int):
                     (id_ruta, id_nodo, orden, distancia_acumulada),
                 )
                 nodo_anterior = id_nodo
-
         conexion.commit()
-
         return {
             "id_ruta": id_ruta,
             "codigo": codigo,
@@ -135,18 +125,15 @@ def crear_ruta(origen: int, destino: int):
             "distancia_total_km": resultado["distancia"],
             "estado": "PLANIFICADA",
         }
-
     except Exception:
         conexion.rollback()
         raise
-
     finally:
         conexion.close()
 
 
 def obtener_ruta(id_ruta: int):
     conexion = obtener_conexion()
-
     try:
         with conexion.cursor() as cursor:
             cursor.execute(
@@ -190,12 +177,9 @@ def obtener_ruta(id_ruta: int):
                 """,
                 (id_ruta,),
             )
-
             ruta = cursor.fetchone()
-
             if ruta is None:
                 return None
-
             cursor.execute(
                 """
                 SELECT
@@ -214,7 +198,6 @@ def obtener_ruta(id_ruta: int):
                 """,
                 (id_ruta,),
             )
-
             puntos = [
                 {
                     "orden": punto[0],
@@ -227,7 +210,6 @@ def obtener_ruta(id_ruta: int):
                 }
                 for punto in cursor.fetchall()
             ]
-
             return {
                 "id_ruta": ruta[0],
                 "codigo": ruta[1],
@@ -246,14 +228,12 @@ def obtener_ruta(id_ruta: int):
                 "actualizado_en": ruta[22],
                 "puntos": puntos,
             }
-
     finally:
         conexion.close()
 
 
 def listar_rutas():
     conexion = obtener_conexion()
-
     try:
         with conexion.cursor() as cursor:
             cursor.execute(
@@ -291,7 +271,6 @@ def listar_rutas():
                 ORDER BY r.creado_en DESC, r.id_ruta DESC;
                 """
             )
-
             return [
                 {
                     "id_ruta": fila[0],
@@ -307,7 +286,6 @@ def listar_rutas():
                 }
                 for fila in cursor.fetchall()
             ]
-
     finally:
         conexion.close()
 
@@ -318,7 +296,6 @@ def asignar_conductor_vehiculo(
     id_vehiculo: int,
 ):
     conexion = obtener_conexion()
-
     try:
         with conexion.cursor() as cursor:
             cursor.execute(
@@ -331,61 +308,16 @@ def asignar_conductor_vehiculo(
                 (id_ruta,),
             )
             ruta = cursor.fetchone()
-
             if ruta is None:
                 raise RutaNoEncontradaError("La ruta no existe.")
-
             if ruta[0] not in {"PLANIFICADA", "ASIGNADA"}:
                 raise ReglaNegocioError(
                     "Solo se pueden asignar recursos a una ruta planificada o asignada."
                 )
 
-            cursor.execute(
-                """
-                SELECT
-                    id_conductor,
-                    numero_licencia,
-                    tipo_licencia,
-                    telefono,
-                    disponible,
-                    activo
-                FROM logistica.conductores
-                WHERE id_conductor = %s;
-                """,
-                (id_conductor,),
+            conductor, vehiculo = validar_recursos(
+                cursor, id_conductor, id_vehiculo, excluir_ruta=id_ruta
             )
-            conductor = cursor.fetchone()
-
-            if conductor is None:
-                raise RecursoNoEncontradoError("El conductor no existe.")
-            if not conductor[5]:
-                raise ReglaNegocioError("El conductor no esta activo.")
-            if not conductor[4]:
-                raise ReglaNegocioError("El conductor no esta disponible.")
-
-            cursor.execute(
-                """
-                SELECT
-                    id_vehiculo,
-                    placa,
-                    marca,
-                    modelo,
-                    tipo_vehiculo,
-                    estado,
-                    activo
-                FROM logistica.vehiculos
-                WHERE id_vehiculo = %s;
-                """,
-                (id_vehiculo,),
-            )
-            vehiculo = cursor.fetchone()
-
-            if vehiculo is None:
-                raise RecursoNoEncontradoError("El vehiculo no existe.")
-            if not vehiculo[6]:
-                raise ReglaNegocioError("El vehiculo no esta activo.")
-            if vehiculo[5] != "DISPONIBLE":
-                raise ReglaNegocioError("El vehiculo no esta disponible.")
 
             cursor.execute(
                 """
@@ -401,40 +333,44 @@ def asignar_conductor_vehiculo(
                 (id_conductor, id_vehiculo, id_ruta),
             )
             actualizada = cursor.fetchone()
+            cursor.execute(
+                "UPDATE logistica.conductores SET disponible=FALSE, actualizado_en=CURRENT_TIMESTAMP WHERE id_conductor=%s;",
+                (id_conductor,),
+            )
+            cursor.execute(
+                "UPDATE logistica.vehiculos SET estado='EN_RUTA', actualizado_en=CURRENT_TIMESTAMP WHERE id_vehiculo=%s;",
+                (id_vehiculo,),
+            )
 
         conexion.commit()
-
         return {
             "id_ruta": actualizada[0],
             "codigo": actualizada[1],
             "estado": actualizada[2],
             "conductor": {
-                "id_conductor": conductor[0],
-                "numero_licencia": conductor[1],
-                "tipo_licencia": conductor[2],
-                "telefono": conductor[3],
+                "id_conductor": conductor["id_conductor"],
+                "numero_licencia": conductor["numero_licencia"],
+                "tipo_licencia": conductor["tipo_licencia"],
+                "telefono": conductor["telefono"],
             },
             "vehiculo": {
-                "id_vehiculo": vehiculo[0],
-                "placa": vehiculo[1],
-                "marca": vehiculo[2],
-                "modelo": vehiculo[3],
-                "tipo_vehiculo": vehiculo[4],
+                "id_vehiculo": vehiculo["id_vehiculo"],
+                "placa": vehiculo["placa"],
+                "marca": vehiculo["marca"],
+                "modelo": vehiculo["modelo"],
+                "tipo_vehiculo": vehiculo["tipo_vehiculo"],
             },
             "actualizado_en": actualizada[3],
         }
-
     except Exception:
         conexion.rollback()
         raise
-
     finally:
         conexion.close()
 
 
 def actualizar_estado_ruta(id_ruta: int, estado_nuevo: str):
     conexion = obtener_conexion()
-
     try:
         with conexion.cursor() as cursor:
             cursor.execute(
@@ -447,23 +383,73 @@ def actualizar_estado_ruta(id_ruta: int, estado_nuevo: str):
                 (id_ruta,),
             )
             ruta = cursor.fetchone()
-
             if ruta is None:
                 raise RutaNoEncontradaError("La ruta no existe.")
-
             estado_actual, id_conductor, id_vehiculo = ruta
-
             if estado_nuevo not in TRANSICIONES_ESTADO[estado_actual]:
                 raise ReglaNegocioError(
                     f"No se permite cambiar de {estado_actual} a {estado_nuevo}."
                 )
-
-            if estado_nuevo == "ASIGNADA" and (
-                id_conductor is None or id_vehiculo is None
-            ):
+            if estado_nuevo == "ASIGNADA" and (id_conductor is None or id_vehiculo is None):
                 raise ReglaNegocioError(
                     "La ruta necesita conductor y vehiculo antes de asignarse."
                 )
+
+            if estado_nuevo == "COMPLETADA":
+                cursor.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM logistica.ruta_pedidos rp
+                    JOIN operaciones.pedidos p ON p.id_pedido = rp.id_pedido
+                    WHERE rp.id_ruta = %s AND p.estado <> 'ENTREGADO';
+                    """,
+                    (id_ruta,),
+                )
+                pendientes = cursor.fetchone()[0]
+                if pendientes:
+                    raise ReglaNegocioError(
+                        f"La ruta tiene {pendientes} entrega(s) pendiente(s)."
+                    )
+
+            if estado_nuevo == "EN_RUTA":
+                cursor.execute(
+                    """UPDATE operaciones.pedidos p SET estado='EN_RUTA', actualizado_en=CURRENT_TIMESTAMP
+                       FROM logistica.ruta_pedidos rp
+                       WHERE rp.id_ruta=%s AND rp.id_pedido=p.id_pedido AND p.estado='PLANIFICADO';""",
+                    (id_ruta,),
+                )
+                cursor.execute(
+                    """UPDATE operaciones.entregas e SET estado='EN_RUTA', fecha_salida=COALESCE(fecha_salida, CURRENT_TIMESTAMP), actualizado_en=CURRENT_TIMESTAMP
+                       FROM logistica.ruta_pedidos rp
+                       WHERE rp.id_ruta=%s AND rp.id_pedido=e.id_pedido AND e.estado='PENDIENTE';""",
+                    (id_ruta,),
+                )
+
+            if estado_nuevo == "CANCELADA":
+                cursor.execute(
+                    """UPDATE operaciones.pedidos p SET estado='PENDIENTE', actualizado_en=CURRENT_TIMESTAMP
+                       FROM logistica.ruta_pedidos rp
+                       WHERE rp.id_ruta=%s AND rp.id_pedido=p.id_pedido AND p.estado <> 'ENTREGADO';""",
+                    (id_ruta,),
+                )
+                cursor.execute(
+                    """UPDATE operaciones.entregas e SET estado='PENDIENTE', actualizado_en=CURRENT_TIMESTAMP
+                       FROM logistica.ruta_pedidos rp
+                       WHERE rp.id_ruta=%s AND rp.id_pedido=e.id_pedido AND e.estado <> 'ENTREGADO';""",
+                    (id_ruta,),
+                )
+
+            if estado_nuevo in {"COMPLETADA", "CANCELADA"}:
+                if id_conductor is not None:
+                    cursor.execute(
+                        "UPDATE logistica.conductores SET disponible=TRUE, actualizado_en=CURRENT_TIMESTAMP WHERE id_conductor=%s;",
+                        (id_conductor,),
+                    )
+                if id_vehiculo is not None:
+                    cursor.execute(
+                        "UPDATE logistica.vehiculos SET estado='DISPONIBLE', actualizado_en=CURRENT_TIMESTAMP WHERE id_vehiculo=%s;",
+                        (id_vehiculo,),
+                    )
 
             cursor.execute(
                 """
@@ -491,9 +477,7 @@ def actualizar_estado_ruta(id_ruta: int, estado_nuevo: str):
                 (estado_nuevo, estado_nuevo, estado_nuevo, id_ruta),
             )
             actualizada = cursor.fetchone()
-
         conexion.commit()
-
         return {
             "id_ruta": actualizada[0],
             "codigo": actualizada[1],
@@ -502,10 +486,116 @@ def actualizar_estado_ruta(id_ruta: int, estado_nuevo: str):
             "fecha_fin": actualizada[4],
             "actualizado_en": actualizada[5],
         }
-
     except Exception:
         conexion.rollback()
         raise
+    finally:
+        conexion.close()
 
+
+def liberar_recursos_ruta(id_ruta: int, liberar_pedidos_no_entregados: bool = False):
+    """Compatibilidad: cancela la ruta sin borrar asignaciones ni historial."""
+
+    if not liberar_pedidos_no_entregados:
+        raise ReglaNegocioError("Los recursos solo se liberan al completar o cancelar la ruta.")
+    return actualizar_estado_ruta(id_ruta, "CANCELADA")
+
+
+def confirmar_entrega_ruta(
+    id_ruta: int,
+    id_pedido: int,
+    nombre_receptor: str | None = None,
+    observaciones: str | None = None,
+):
+    """Confirma un pedido concreto sin completar implicitamente toda la ruta."""
+
+    conexion = obtener_conexion()
+    try:
+        with conexion.cursor() as cursor:
+            cursor.execute(
+                "SELECT estado FROM logistica.rutas WHERE id_ruta=%s FOR UPDATE;",
+                (id_ruta,),
+            )
+            ruta = cursor.fetchone()
+            if ruta is None:
+                raise RutaNoEncontradaError("La ruta no existe.")
+            if ruta[0] != "EN_RUTA":
+                raise ReglaNegocioError("Solo se confirman entregas de una ruta EN_RUTA.")
+            cursor.execute(
+                """
+                SELECT p.estado
+                FROM logistica.ruta_pedidos rp
+                JOIN operaciones.pedidos p ON p.id_pedido=rp.id_pedido
+                WHERE rp.id_ruta=%s AND rp.id_pedido=%s
+                FOR UPDATE OF p;
+                """,
+                (id_ruta, id_pedido),
+            )
+            pedido = cursor.fetchone()
+            if pedido is None:
+                raise RecursoNoEncontradoError("El pedido no pertenece a esta ruta.")
+            if pedido[0] == "ENTREGADO":
+                conexion.commit()
+                return {"id_ruta": id_ruta, "id_pedido": id_pedido, "estado": "ENTREGADO", "duplicada": True}
+            if pedido[0] != "EN_RUTA":
+                raise ReglaNegocioError(f"El pedido no puede entregarse desde el estado {pedido[0]}.")
+            cursor.execute(
+                "UPDATE operaciones.pedidos SET estado='ENTREGADO', actualizado_en=CURRENT_TIMESTAMP WHERE id_pedido=%s;",
+                (id_pedido,),
+            )
+            cursor.execute(
+                """
+                INSERT INTO operaciones.entregas
+                    (id_pedido, estado, fecha_salida, fecha_entrega, nombre_receptor, observaciones)
+                VALUES (%s, 'ENTREGADO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, %s, %s)
+                ON CONFLICT (id_pedido) DO UPDATE SET
+                    estado='ENTREGADO', fecha_entrega=CURRENT_TIMESTAMP,
+                    nombre_receptor=EXCLUDED.nombre_receptor,
+                    observaciones=EXCLUDED.observaciones,
+                    actualizado_en=CURRENT_TIMESTAMP;
+                """,
+                (id_pedido, nombre_receptor, observaciones),
+            )
+        conexion.commit()
+        return {"id_ruta": id_ruta, "id_pedido": id_pedido, "estado": "ENTREGADO", "duplicada": False}
+    except Exception:
+        conexion.rollback()
+        raise
+    finally:
+        conexion.close()
+
+
+def registrar_novedad_ruta(id_ruta: int, tipo: str, descripcion: str, id_pedido: int | None = None):
+    conexion = obtener_conexion()
+    try:
+        with conexion.cursor() as cursor:
+            cursor.execute(
+                "SELECT estado FROM logistica.rutas WHERE id_ruta=%s FOR UPDATE;",
+                (id_ruta,),
+            )
+            ruta = cursor.fetchone()
+            if ruta is None:
+                raise RutaNoEncontradaError("La ruta no existe.")
+            if ruta[0] in {"COMPLETADA", "CANCELADA"}:
+                raise ReglaNegocioError("No se registran novedades en una ruta cerrada.")
+            if id_pedido is not None:
+                cursor.execute(
+                    "SELECT 1 FROM logistica.ruta_pedidos WHERE id_ruta=%s AND id_pedido=%s;",
+                    (id_ruta, id_pedido),
+                )
+                if cursor.fetchone() is None:
+                    raise RecursoNoEncontradoError("El pedido no pertenece a esta ruta.")
+            cursor.execute(
+                """INSERT INTO logistica.ruta_novedades (id_ruta, id_pedido, tipo, descripcion)
+                   VALUES (%s, %s, %s, %s)
+                   RETURNING id_novedad, creado_en;""",
+                (id_ruta, id_pedido, tipo, descripcion),
+            )
+            creada = cursor.fetchone()
+        conexion.commit()
+        return {"id_novedad": creada[0], "id_ruta": id_ruta, "id_pedido": id_pedido, "tipo": tipo, "descripcion": descripcion, "creado_en": creada[1]}
+    except Exception:
+        conexion.rollback()
+        raise
     finally:
         conexion.close()

@@ -425,6 +425,8 @@ CREATE TABLE IF NOT EXISTS logistica.rutas (
     tiempo_estimado_min NUMERIC(10,2),
     costo_estimado NUMERIC(10,2),
 
+    clave_idempotencia VARCHAR(64),
+
     fecha_planificada TIMESTAMPTZ,
     fecha_inicio TIMESTAMPTZ,
     fecha_fin TIMESTAMPTZ,
@@ -563,6 +565,15 @@ CREATE TABLE IF NOT EXISTS logistica.ruta_pedidos (
         UNIQUE (id_ruta, orden_entrega)
 );
 
+CREATE TABLE IF NOT EXISTS logistica.ruta_novedades (
+    id_novedad BIGSERIAL PRIMARY KEY,
+    id_ruta BIGINT NOT NULL REFERENCES logistica.rutas(id_ruta),
+    id_pedido BIGINT REFERENCES operaciones.pedidos(id_pedido),
+    tipo VARCHAR(40) NOT NULL,
+    descripcion VARCHAR(500) NOT NULL,
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ============================================================
 -- MIGRACIONES COMPATIBLES PARA RESTRICCIONES LOGISTICAS
 -- Las columnas son opcionales para conservar registros existentes.
@@ -573,6 +584,9 @@ ALTER TABLE operaciones.direcciones
 
 ALTER TABLE logistica.vehiculos
     ADD COLUMN IF NOT EXISTS capacidad_volumen_m3 NUMERIC(10,3);
+
+ALTER TABLE logistica.rutas
+    ADD COLUMN IF NOT EXISTS clave_idempotencia VARCHAR(64);
 
 DO $$
 BEGIN

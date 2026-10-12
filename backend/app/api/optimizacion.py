@@ -4,8 +4,10 @@ Router de API para optimización multi-entrega.
 Endpoint: POST /api/optimizacion/multi-entrega
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from backend.app.core.deps import Principal, requiere_permiso
+from backend.app.core.permisos import Permiso
 from backend.app.schemas.optimizacion import (
     OptimizacionRequest,
     OptimizacionResponse,
@@ -27,7 +29,10 @@ router = APIRouter(
 
 
 @router.post("/multi-entrega", response_model=OptimizacionResponse)
-def calcular_multi_entrega(solicitud: OptimizacionRequest):
+def calcular_multi_entrega(
+    solicitud: OptimizacionRequest,
+    principal: Principal = Depends(requiere_permiso(Permiso.RUTAS_PLANIFICAR)),
+):
     """
     Calcula la orden óptima de visita para múltiples destinos.
 
@@ -70,7 +75,10 @@ def calcular_multi_entrega(solicitud: OptimizacionRequest):
 
 
 @router.post("/planificar", response_model=PlanificacionResponse)
-def planificar_multi_entrega(solicitud: PlanificacionRequest):
+def planificar_multi_entrega(
+    solicitud: PlanificacionRequest,
+    principal: Principal = Depends(requiere_permiso(Permiso.RUTAS_PLANIFICAR)),
+):
     """Valida pedidos y capacidad antes de ejecutar TSP con Dijkstra."""
     try:
         resultado = planificar_entregas(
