@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Quito al atardecer con volcán andino">
+  <defs>
+    <linearGradient id="cielo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="38%" stop-color="#4c1d95"/>
+      <stop offset="62%" stop-color="#b45309"/>
+      <stop offset="82%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#fcd34d"/>
+    </linearGradient>
+    <linearGradient id="sol" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fffbeb"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="500" fill="url(#cielo)"/>
+  <circle cx="660" cy="336" r="58" fill="url(#sol)" opacity="0.95"/>
+  <circle cx="660" cy="336" r="96" fill="#fbbf24" opacity="0.16"/>
+  <path d="M40 404 L318 176 L596 404 Z" fill="#3b0764" opacity="0.82"/>
+  <path d="M282 226 L318 176 L354 226 Z" fill="#f8fafc" opacity="0.9"/>
+  <path d="M520 404 L700 250 L900 404 Z" fill="#1e1b4b" opacity="0.78"/>
+  <g fill="#0f172a">
+    <rect x="0" y="330" width="44" height="140" rx="2"/>
+    <rect x="48" y="360" width="38" height="110" rx="2"/>
+    <rect x="90" y="320" width="50" height="150" rx="2"/>
+    <rect x="144" y="372" width="36" height="98" rx="2"/>
+    <rect x="184" y="344" width="46" height="126" rx="2"/>
+    <rect x="234" y="386" width="34" height="84" rx="2"/>
+    <rect x="272" y="330" width="48" height="140" rx="2"/>
+    <rect x="324" y="366" width="38" height="104" rx="2"/>
+    <rect x="366" y="316" width="52" height="154" rx="2"/>
+    <rect x="422" y="360" width="40" height="110" rx="2"/>
+    <rect x="466" y="338" width="46" height="132" rx="2"/>
+    <rect x="516" y="374" width="36" height="96" rx="2"/>
+    <rect x="556" y="326" width="50" height="144" rx="2"/>
+    <rect x="610" y="362" width="42" height="108" rx="2"/>
+    <rect x="656" y="318" width="48" height="152" rx="2"/>
+    <rect x="708" y="356" width="38" height="114" rx="2"/>
+    <rect x="750" y="332" width="50" height="138" rx="2"/>
+    <rect x="804" y="368" width="42" height="102" rx="2"/>
+    <rect x="850" y="340" width="50" height="130" rx="2"/>
+  </g>
+  <g fill="#fcd34d" opacity="0.85">
+    <rect x="10" y="344" width="3" height="5"/><rect x="22" y="344" width="3" height="5"/><rect x="34" y="358" width="3" height="5"/>
+    <rect x="100" y="334" width="3" height="5"/><rect x="112" y="334" width="3" height="5"/><rect x="124" y="348" width="3" height="5"/>
+    <rect x="196" y="358" width="3" height="5"/><rect x="208" y="372" width="3" height="5"/>
+    <rect x="282" y="344" width="3" height="5"/><rect x="294" y="344" width="3" height="5"/><rect x="306" y="358" width="3" height="5"/>
+    <rect x="378" y="330" width="3" height="5"/><rect x="390" y="330" width="3" height="5"/><rect x="402" y="344" width="3" height="5"/>
+    <rect x="478" y="352" width="3" height="5"/><rect x="490" y="366" width="3" height="5"/>
+    <rect x="568" y="340" width="3" height="5"/><rect x="580" y="354" width="3" height="5"/>
+    <rect x="668" y="332" width="3" height="5"/><rect x="680" y="332" width="3" height="5"/><rect x="692" y="346" width="3" height="5"/>
+    <rect x="762" y="346" width="3" height="5"/><rect x="774" y="360" width="3" height="5"/>
+    <rect x="862" y="354" width="3" height="5"/><rect x="874" y="368" width="3" height="5"/>
+  </g>
+  <rect x="0" y="430" width="900" height="70" fill="#020617" opacity="0.55"/>
+  <path d="M0 470 H900" stroke="#f59e0b" stroke-width="2" opacity="0.35"/>
+</svg>

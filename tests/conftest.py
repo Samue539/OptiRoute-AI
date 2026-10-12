@@ -1,3 +1,10 @@
+from datetime import timedelta
+
+from backend.app.core.deps import Principal
+from backend.app.core.permisos import permisos_de
+from backend.app.repositories.modelos import Cuenta, Sesion, ahora_utc
+
+
 class CursorSimulado:
     def __init__(self, respuestas):
         self.respuestas = list(respuestas)
@@ -41,3 +48,25 @@ class ConexionSimulada:
 
     def close(self):
         self.cerrada = True
+
+
+def crear_principal(rol="OPERADOR", id_usuario=1, id_conductor=None):
+    """Construye un :class:`Principal` valido para pruebas de endpoints."""
+
+    cuenta = Cuenta(
+        id_usuario=id_usuario,
+        nombres="Usuario",
+        apellidos="Prueba",
+        correo=f"usuario{id_usuario}@optiroute.test",
+        password_hash="no-usado",
+        rol=rol,
+        activo=True,
+        id_conductor=id_conductor,
+    )
+    sesion = Sesion(
+        token_hash="hash-prueba",
+        id_usuario=id_usuario,
+        expira_en=ahora_utc() + timedelta(hours=1),
+    )
+    return Principal(cuenta=cuenta, sesion=sesion, permisos=permisos_de(rol))
+

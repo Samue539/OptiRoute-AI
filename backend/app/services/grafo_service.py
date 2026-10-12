@@ -84,3 +84,33 @@ def obtener_nodo(id_nodo):
     finally:
         cursor.close()
         conexion.close()
+
+
+def listar_nodos_activos():
+    """Lista nodos del grafo que pueden usarse como origen real."""
+    conexion = obtener_conexion()
+    cursor = conexion.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT id_nodo, nombre, tipo_nodo, latitud, longitud, activo
+            FROM logistica.nodos
+            WHERE activo = TRUE
+            ORDER BY id_nodo;
+            """
+        )
+        return [
+            {
+                "id_nodo": fila[0],
+                "nombre": fila[1],
+                "tipo_nodo": fila[2],
+                "latitud": float(fila[3]),
+                "longitud": float(fila[4]),
+                "activo": fila[5],
+            }
+            for fila in cursor.fetchall()
+        ]
+    finally:
+        cursor.close()
+        conexion.close()

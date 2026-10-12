@@ -20,10 +20,19 @@ from fastapi.testclient import TestClient
 from backend.app.main import app
 from backend.app.services.excepciones import ReglaNegocioError
 from backend.app.services.optimizacion_service import optimizar_multi_entrega
-from tests.conftest import ConexionSimulada
+from tests.conftest import ConexionSimulada, crear_principal
 
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _auth_operador_api():
+    from backend.app.core.deps import sesion_actual
+
+    app.dependency_overrides[sesion_actual] = lambda: crear_principal("ADMINISTRADOR")
+    yield
+    app.dependency_overrides.pop(sesion_actual, None)
 
 
 class TestOptimizarMultiEntregaValidaciones:

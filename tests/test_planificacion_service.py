@@ -13,9 +13,19 @@ from backend.app.services.excepciones import (
     RecursoNoEncontradoError,
     ReglaNegocioError,
 )
+from tests.conftest import crear_principal
 
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _auth_operador_api():
+    from backend.app.core.deps import sesion_actual
+
+    app.dependency_overrides[sesion_actual] = lambda: crear_principal("ADMINISTRADOR")
+    yield
+    app.dependency_overrides.pop(sesion_actual, None)
 
 
 def _nodo(id_nodo):

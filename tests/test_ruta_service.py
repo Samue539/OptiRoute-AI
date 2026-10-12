@@ -103,8 +103,12 @@ def test_asignar_conductor_y_vehiculo_validos(monkeypatch):
         [
             ("PLANIFICADA",),
             (1, "LIC-1", "B", "099", True, True),
-            (1, "ABC-123", "Marca", "Modelo", "CAMIONETA", "DISPONIBLE", True),
+            None,
+            (1, "ABC-123", "Marca", "Modelo", "CAMIONETA", "DISPONIBLE", True, 500, 5),
+            None,
             (1, "RUT-000001", "ASIGNADA", AHORA),
+            None,
+            None,
         ]
     )
     monkeypatch.setattr(ruta_service, "obtener_conexion", lambda: conexion)
@@ -143,12 +147,13 @@ def test_cambiar_estado_valido(
     fecha_inicio,
     fecha_fin,
 ):
-    conexion = ConexionSimulada(
-        [
-            (estado_actual, 1, 1),
-            (1, "RUT-000001", estado_nuevo, fecha_inicio, fecha_fin, AHORA),
-        ]
-    )
+    respuestas = [(estado_actual, 1, 1)]
+    if estado_nuevo == "EN_RUTA":
+        respuestas.extend([None, None])
+    else:
+        respuestas.extend([(0,), None, None])
+    respuestas.append((1, "RUT-000001", estado_nuevo, fecha_inicio, fecha_fin, AHORA))
+    conexion = ConexionSimulada(respuestas)
     monkeypatch.setattr(ruta_service, "obtener_conexion", lambda: conexion)
 
     resultado = ruta_service.actualizar_estado_ruta(1, estado_nuevo)
@@ -168,3 +173,41 @@ def test_rechazar_transicion_completada_a_en_ruta(monkeypatch):
 
     assert conexion.commits == 0
     assert conexion.rollbacks == 1
+
+
+def test_no_completa_ruta_con_entregas_pendientes(monkeypatch):
+    conexion = ConexionSimulada([("EN_RUTA", 1, 1), (2,)])
+    monkeypatch.setattr(ruta_service, "obtener_conexion", lambda: conexion)
+
+    with pytest.raises(ReglaNegocioError, match="2 entrega"):
+        ruta_service.actualizar_estado_ruta(1, "COMPLETADA")
+
+    assert conexion.rollbacks == 1
+
+
+def test_cancelar_libera_sin_borrar_historial(monkeypatch):
+    conexion = ConexionSimulada([
+        ("ASIGNADA", 1, 1), None, None, None, None,
+        (1, "RUT-000001", "CANCELADA", None, None, AHORA),
+    ])
+    monkeypatch.setattr(ruta_service, "obtener_conexion", lambda: conexion)
+
+    resultado = ruta_service.actualizar_estado_ruta(1, "CANCELADA")
+
+    assert resultado["estado"] == "CANCELADA"
+    consultas = "\n".join(q for q, _ in conexion.cursor_simulado.consultas)
+    assert "DELETE FROM logistica.ruta_pedidos" not in consultas
+    assert "estado='PENDIENTE'" in consultas
+    assert "disponible=TRUE" in consultas
+
+
+def test_confirmacion_individual_no_completa_la_ruta(monkeypatch):
+    conexion = ConexionSimulada([("EN_RUTA",), ("EN_RUTA",), None, None])
+    monkeypatch.setattr(ruta_service, "obtener_conexion", lambda: conexion)
+
+    resultado = ruta_service.confirmar_entrega_ruta(1, 10, "Ana", "Recibido")
+
+    assert resultado["estado"] == "ENTREGADO"
+    consultas = "\n".join(q for q, _ in conexion.cursor_simulado.consultas)
+    assert "UPDATE logistica.rutas SET estado='COMPLETADA'" not in consultas
+    assert conexion.commits == 1
